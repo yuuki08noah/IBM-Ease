@@ -1,0 +1,133 @@
+{
+  "users": [
+    {
+      "id": "u1",
+      "name": "Sarah_Cloud",
+      "role": "expert",
+      "reputation": 2500,
+      "badges": [
+        "Architect",
+        "Top Answerer"
+      ],
+      "certified": true,
+      "avatarUrl": ""
+    },
+    {
+      "id": "u2",
+      "name": "IBM_Dave",
+      "role": "ibm",
+      "reputation": 10000,
+      "badges": [
+        "IBM Staff",
+        "Watson Specialist"
+      ],
+      "certified": true,
+      "avatarUrl": ""
+    },
+    {
+      "id": "u3",
+      "name": "CodeNinja",
+      "role": "user",
+      "reputation": 890,
+      "badges": [
+        "Rising Star"
+      ],
+      "certified": false,
+      "avatarUrl": ""
+    },
+    {
+      "id": "u4",
+      "name": "john_dev",
+      "role": "user",
+      "reputation": 120,
+      "badges": [],
+      "certified": false,
+      "avatarUrl": ""
+    },
+    {
+      "id": "test-user",
+      "name": "Test User",
+      "role": "user",
+      "reputation": 0,
+      "badges": [],
+      "certified": false
+    }
+  ],
+  "posts": [
+    {
+      "id": "q1",
+      "title": "How do I authenticate with Watson Assistant API securely?",
+      "body": "I am trying to connect to Watson Assistant but getting 401 errors using the standard API key method. Is there a specific IAM flow I should be using for production workloads?",
+      "authorId": "u4",
+      "tags": [
+        "watson",
+        "authentication",
+        "security"
+      ],
+      "votes": 12,
+      "views": 245,
+      "solved": true,
+      "createdAt": "2023-11-15T10:00:00Z"
+    },
+    {
+      "id": "q2",
+      "title": "Best practices for Cloudant database partitioning",
+      "body": "What are the recommended patterns for document structure in Cloudant when dealing with time-series data? Should I partition by date?",
+      "authorId": "u1",
+      "tags": [
+        "cloudant",
+        "database",
+        "performance"
+      ],
+      "votes": 8,
+      "views": 189,
+      "solved": false,
+      "createdAt": "2023-11-20T14:30:00Z"
+    },
+    {
+      "title": "Test Post",
+      "body": "This is a test",
+      "authorId": "u4",
+      "tags": [
+        "test"
+      ],
+      "id": "q1765038529493",
+      "votes": 0,
+      "views": 0,
+      "solved": false,
+      "createdAt": "2025-12-06T16:28:49.493Z"
+    }
+  ],
+  "comments": [
+    {
+      "id": "a1",
+      "postId": "q1",
+      "body": "You need to use IAM authentication with Watson Assistant. The `IamAuthenticator` class is your friend here. Do not hardcode credentials.",
+      "authorId": "u2",
+      "votes": 24,
+      "accepted": true,
+      "ibmVerified": true,
+      "createdAt": "2023-11-15T11:00:00Z"
+    },
+    {
+      "id": "a2",
+      "postId": "q1",
+      "body": "Also check your service instance region. Sometimes the endpoint defaults to Dallas but your instance is in Frankfurt.",
+      "authorId": "u3",
+      "votes": 5,
+      "accepted": false,
+      "ibmVerified": false,
+      "createdAt": "2023-11-15T11:30:00Z"
+    },
+    {
+      "postId": "q2",
+      "body": "ㅇㄴㅁㄴㅇㄴㅁㅇㅁ\n",
+      "authorId": "u4",
+      "id": "a1765038641272",
+      "votes": 0,
+      "accepted": false,
+      "ibmVerified": false,
+      "createdAt": "2025-12-06T16:30:41.272Z"
+    }
+  ]
+}
