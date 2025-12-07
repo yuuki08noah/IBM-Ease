@@ -1,0 +1,332 @@
+@use '@carbon/styles' as *;
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  /* Carbon Gray 100 Theme Variables */
+  --cds-background: #161616;
+  --cds-layer: #262626;
+  --cds-layer-hover: #353535;
+  --cds-layer-accent: #393939;
+  --cds-border-subtle: #525252;
+  --cds-border-strong: #525252;
+  --cds-text-primary: #f4f4f4;
+  --cds-text-secondary: #c6c6c6;
+  --cds-text-placeholder: #a8a8a8;
+  --cds-primary: #0f62fe;
+  --cds-primary-hover: #0353e9;
+  --cds-focus: #0f62fe;
+  --cds-field: #393939;
+  --cds-success: #42be65;
+  --cds-danger: #da1e28;
+
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+
+  --card-radius: 0px;
+  --card-shadow: none;
+  --card-shadow-hover: none;
+  --ibm-gray-100: #161616;
+  --ibm-gray-90: #262626;
+  --ibm-gray-80: #393939;
+  --ibm-gray-70: #4c4c4c;
+  --ibm-gray-60: #6f6f6f;
+  --ibm-gray-50: #8d8d8d;
+  --ibm-gray-30: #c6c6c6;
+  --ibm-gray-20: #e0e0e0;
+  --ibm-gray-10: #f4f4f4;
+  --ibm-blue-60: #0f62fe;
+  /* Carbon uses sharp corners usually, but we can stick to 0 or small radius if preferred. Home page uses 0 */
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--ibm-gray-100);
+  color: var(--cds-text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--cds-primary);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+a:hover {
+  color: var(--cds-primary-hover);
+  text-decoration: underline;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Layout Wrappers */
+.page-wrapper {
+  background-color: var(--cds-background);
+  min-height: calc(100vh - 48px);
+  color: var(--cds-text-primary);
+  font-family: var(--font-sans);
+}
+
+.page-container {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 64px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+}
+
+@media (max-width: 672px) {
+  .page-container {
+    padding: 32px 16px;
+    gap: 48px;
+  }
+}
+
+/* Hero Section Shared Styles */
+.home-hero {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ibm-gray-80);
+  color: var(--cds-text-primary);
+  padding: 2px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  border-radius: 12px;
+  border: 1px solid var(--cds-border-subtle);
+  text-transform: none;
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #42be65;
+  /* Green 50 */
+  border-radius: 50%;
+}
+
+.hero-title {
+  font-size: 54px;
+  font-weight: 300;
+  line-height: 1.15;
+  margin: 0;
+  color: var(--cds-text-primary);
+}
+
+.hero-title .highlight {
+  font-weight: 600;
+  color: #4589ff;
+  /* Blue 60 */
+  background: none;
+  -webkit-text-fill-color: #4589ff;
+}
+
+.hero-sub {
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--cds-text-secondary);
+  max-width: 600px;
+  line-height: 1.4;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .hero-title {
+    font-size: 32px;
+  }
+}
+
+/* Section Headers */
+.section-title {
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--cds-text-primary);
+  margin-bottom: 24px;
+}
+
+/* Cards */
+.card {
+  background: var(--cds-layer);
+  /* Gray 90 */
+  border: 1px solid transparent;
+  padding: 16px;
+  border-radius: var(--card-radius);
+  color: var(--cds-text-primary);
+}
+
+.feature-card {
+  background: var(--cds-layer);
+  border: 1px solid transparent;
+  padding: 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 70ms;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border-radius: var(--card-radius);
+  text-align: left;
+}
+
+.feature-card:hover {
+  background: var(--cds-layer-hover);
+}
+
+/* Buttons */
+.primary-btn {
+  background: var(--cds-primary);
+  color: #ffffff;
+  padding: 16px;
+  font-size: 14px;
+  font-weight: 400;
+  text-decoration: none;
+  border: none;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 70ms;
+  line-height: 1;
+}
+
+.primary-btn:hover {
+  background: var(--cds-primary-hover);
+  text-decoration: none;
+  color: #ffffff;
+}
+
+.primary-btn:disabled {
+  background: var(--ibm-gray-80);
+  color: var(--ibm-gray-50);
+  cursor: not-allowed;
+}
+
+.secondary-btn {
+  background: var(--cds-layer-accent);
+  color: #ffffff;
+  padding: 16px 64px 16px 16px;
+  font-size: 14px;
+  font-weight: 400;
+  text-decoration: none;
+  border: none;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  transition: background 70ms;
+}
+
+
+.secondary-btn:hover {
+  background: #4c4c4c;
+  /* Gray 70 */
+  text-decoration: none;
+  color: #ffffff;
+}
+
+.ghost-btn {
+  background: transparent;
+  color: var(--cds-primary);
+  padding: 16px;
+  font-size: 14px;
+  font-weight: 400;
+  text-decoration: none;
+  border: none;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 70ms, color 70ms;
+  line-height: 1;
+}
+
+.ghost-btn:hover {
+  background: var(--cds-layer-hover);
+  color: var(--cds-primary-hover);
+  text-decoration: none;
+}
+
+/* Forms */
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.label {
+  display: block;
+  font-size: 12px;
+  color: var(--cds-text-secondary);
+  margin-bottom: 8px;
+}
+
+.input {
+  width: 100%;
+  background: var(--ibm-gray-80);
+  border: none;
+  border-bottom: 1px solid var(--cds-border-subtle);
+  color: var(--cds-text-primary);
+  padding: 0 16px;
+  height: 48px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: all 70ms;
+  box-sizing: border-box;
+  border-radius: 0;
+}
+
+.input:focus {
+  outline: 2px solid var(--cds-primary);
+  outline-offset: -2px;
+}
+
+.input-hint {
+  font-size: 12px;
+  color: #8d8d8d;
+  margin: 4px 0 0;
+}
+
+.full-width {
+  width: 100%;
+  margin-top: 16px;
+}
+
+/* Utility */
+.flex-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+/* Status Pills */
+.status-pill {
+  font-size: 12px;
+  color: var(--cds-text-secondary);
+}
+
+.status-pill.success {
+  color: #42be65;
+}
