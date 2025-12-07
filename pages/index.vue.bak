@@ -1,0 +1,244 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+
+const templates = ref([] as Array<{
+  id: string
+  name: string
+  description: string
+  services: string[]
+  estCost: string
+  category: string
+}>)
+const selected = ref('')
+const params = ref({
+  name: 'ai-chatbot-demo',
+  region: 'us-south',
+  resourceGroup: 'default',
+  env: 'dev'
+})
+const deployStatus = ref<'idle' | 'planning' | 'applying' | 'done' | 'error'>('idle')
+const deployResult = ref<{ plan?: string; logs?: string; downloadUrl?: string; error?: string; readme?: string }>({})
+const errorMessage = ref('')
+
+const filteredTemplates = computed(() => templates.value)
+
+onMounted(async () => {
+  const { data } = await useFetch('/api/quickstart/templates')
+  if (data.value) {
+    templates.value = data.value
+    selected.value = data.value[0]?.id || ''
+  }
+})
+
+const runDeploy = async () => {
+  if (!selected.value) return
+  deployStatus.value = 'planning'
+  deployResult.value = {}
+  errorMessage.value = ''
+  const { data, error } = await useFetch('/api/quickstart/deploy', {
+    method: 'POST',
+    body: {
+      templateId: selected.value,
+      params: params.value
+    }
+  })
+  if (error.value) {
+    deployStatus.value = 'error'
+    // @ts-expect-error message structure
+    errorMessage.value = error.value?.data?.statusMessage || error.value?.statusMessage || error.value.message
+    deployResult.value = { error: errorMessage.value }
+    return
+  }
+  deployStatus.value = 'done'
+  deployResult.value = data.value || {}
+}
+</script>
+
+<template>
+  <div class="cds--grid page-grid" style="padding-top: 32px;">
+    <section class="cds--row hero card">
+      <div class="hero-accent"></div>
+      <div class="hero-body cds--col-lg-12">
+        <p class="eyebrow">IBM Ease · Quick Start Studio</p>
+        <h1>Terraform-first on IBM Cloud</h1>
+        <p class="hero-sub">
+          Select an IBM-vetted template, validate inputs, and download a ready Terraform bundle with backend, provider pinning, and guardrails.
+        </p>
+        <div class="hero-actions">
+          <button class="cds--btn cds--btn--primary" @click="runDeploy" :disabled="deployStatus === 'planning'">
+            {{ deployStatus === 'planning' ? 'Planning…' : 'Generate Terraform bundle' }}
+          </button>
+          <button class="cds--btn cds--btn--ghost" @click="$router.push('/login')">Sign in with IBM OAuth</button>
+          <span class="badge">PKCE + OAuth</span>
+          <span class="badge">COS backend ready</span>
+        </div>
+        <div class="hero-meta">
+          <div class="chip">Policy-ready (fmt/validate/tflint hooks TBD)</div>
+          <div class="chip">Plan → review → apply pipeline (worker TODO)</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cds--row card" style="margin-bottom: 16px;">
+      <div class="cds--col-lg-12">
+        <h3 class="section-title">Templates</h3>
+        <div class="cds--row template-grid">
+          <button
+            v-for="tpl in filteredTemplates"
+            :key="tpl.id"
+            class="cds--col-lg-4 cds--col-md-4 cds--col-sm-4 template-card"
+            :class="{ active: tpl.id === selected }"
+            @click="selected = tpl.id"
+          >
+            <div class="flex-row" style="justify-content: space-between;">
+              <div style="font-weight: 700;">{{ tpl.name }}</div>
+              <span class="badge">{{ tpl.category }}</span>
+            </div>
+            <p style="margin: 8px 0 12px; color: #525252;">{{ tpl.description }}</p>
+            <div class="chip" v-for="svc in tpl.services" :key="svc" style="margin-right: 6px; margin-bottom: 6px;">{{ svc }}</div>
+            <div style="margin-top: 8px; font-size: 12px; color: #6f6f6f;">Est. cost: {{ tpl.estCost }}</div>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="cds--row card" style="margin-bottom: 16px;">
+      <div class="cds--col-lg-12">
+        <h3 class="section-title">Parameters</h3>
+        <div class="cds--row gapped">
+          <div class="cds--col-lg-3 cds--col-md-4 cds--col-sm-4">
+            <div class="label">Deployment name</div>
+            <input v-model="params.name" class="cds--text-input input" />
+          </div>
+          <div class="cds--col-lg-3 cds--col-md-4 cds--col-sm-4">
+            <div class="label">Region</div>
+            <input v-model="params.region" class="cds--text-input input" />
+          </div>
+          <div class="cds--col-lg-3 cds--col-md-4 cds--col-sm-4">
+            <div class="label">Resource group</div>
+            <input v-model="params.resourceGroup" class="cds--text-input input" />
+          </div>
+          <div class="cds--col-lg-3 cds--col-md-4 cds--col-sm-4">
+            <div class="label">Env</div>
+            <input v-model="params.env" class="cds--text-input input" />
+          </div>
+        </div>
+        <div style="margin-top: 16px;">
+          <button class="cds--btn cds--btn--primary" @click="runDeploy" :disabled="deployStatus === 'planning'">
+            {{ deployStatus === 'planning' ? 'Planning…' : 'Generate Terraform plan' }}
+          </button>
+          <span v-if="errorMessage" style="color: #da1e28; margin-left: 12px;">{{ errorMessage }}</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="cds--row card">
+      <div class="cds--col-lg-12">
+        <h3 class="section-title">Status</h3>
+        <div v-if="deployStatus === 'idle'">No run yet.</div>
+        <div v-else-if="deployStatus === 'planning'" class="status-pill">Planning Terraform…</div>
+        <div v-else-if="deployStatus === 'done'">
+          <div class="status-pill success">Plan generated</div>
+          <pre class="code-block">{{ deployResult.plan }}</pre>
+          <div v-if="deployResult.readme" class="readme">
+            <h4 style="margin: 8px 0 6px;">Bundle README</h4>
+            <pre class="readme-block">{{ deployResult.readme }}</pre>
+          </div>
+          <div class="flex-row" style="justify-content: space-between; margin-top: 8px;">
+            <a v-if="deployResult.downloadUrl" :href="deployResult.downloadUrl">Download Terraform bundle (.zip)</a>
+            <span style="color: #6f6f6f;">Backend: COS/S3-compatible</span>
+          </div>
+        </div>
+        <div v-else-if="deployStatus === 'error'" style="color: #da1e28;">Error: {{ deployResult.error }}</div>
+      </div>
+    </section>
+  </div>
+</template>
+
+<style scoped>
+.template-card {
+  text-align: left;
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: 4px;
+  background: var(--cds-layer);
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.template-card:hover {
+  border-color: var(--cds-focus);
+  box-shadow: none;
+}
+.template-card.active {
+  border-color: var(--cds-focus);
+  box-shadow: none;
+}
+.hero {
+  display: grid;
+  grid-template-columns: 6px 1fr;
+  gap: 16px;
+  align-items: stretch;
+  background: var(--cds-layer);
+  border: 1px solid var(--cds-border-subtle);
+}
+.hero-accent {
+  background: linear-gradient(180deg, #0f62fe 0%, #002d9c 100%);
+  border-radius: 8px;
+}
+.hero-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hero h1 {
+  margin: 4px 0 12px;
+  font-size: 28px;
+  line-height: 1.2;
+}
+.hero-sub {
+  margin: 0 0 12px;
+  color: #525252;
+  max-width: 720px;
+}
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0f62fe;
+  font-weight: 700;
+  margin: 0;
+}
+.hero-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.hero-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.code-block {
+  white-space: pre-wrap;
+  background: #0b0c0f;
+  color: #dfe6ff;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.readme-block {
+  white-space: pre-wrap;
+  background: #f4f4f4;
+  color: #161616;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+.template-grid {
+  row-gap: 12px;
+}
+.gapped {
+  row-gap: 12px;
+}
+</style>
