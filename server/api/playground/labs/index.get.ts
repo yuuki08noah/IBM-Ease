@@ -37,7 +37,18 @@ export const labs: Lab[] = [
       {
         id: 1,
         title: 'Setup Watson Assistant Client',
-        description: 'Import the Watson Assistant SDK and create an authenticated client instance.',
+        description: `
+### 1. Initialize the SDK
+
+First, we need to import the Watson Assistant SDK and create an authenticated client.
+
+**Key Concepts:**
+*   **Authenticator**: We use an IAM API Key to authenticate with IBM Cloud.
+*   **Service URL**: The endpoint for your specific Watson service instance.
+*   **Version**: The API version date (e.g., '2023-06-15').
+
+Run the code below to initialize your client.
+`,
         hint: 'Use the IamAuthenticator with your API key. The Assistant v2 requires a version date.',
         starterCode: `// Import Watson SDK
 const AssistantV2 = require('ibm-watson/assistant/v2');
@@ -61,7 +72,15 @@ console.log('Watson Assistant client created');`,
       {
         id: 2,
         title: 'Create a Session',
-        description: 'Sessions allow you to maintain conversation context with Watson Assistant.',
+        description: `
+### 2. Establishing Context
+
+Watson Assistant v2 uses **Sessions** to maintain the state of a conversation. Before sending any message, you must create a session.
+
+> **Note:** Sessions will expire after a period of inactivity (usually 5 minutes).
+
+The \`createSession\` method returns a \`session_id\` which you will use for subsequent messages.
+`,
         hint: 'Use assistant.createSession() with your assistant ID.',
         starterCode: `// Create a session
 async function createSession(assistantId) {
@@ -82,7 +101,23 @@ createSession('demo-assistant-id').catch(console.error);`,
       {
         id: 3,
         title: 'Send a Message',
-        description: 'Send a text message to Watson and receive a response.',
+        description: `
+### 3. The Conversation Loop
+
+Now that we have a session, we can send a message!
+
+Use the \`message()\` method. The payload requires:
+*   \`assistantId\`
+*   \`sessionId\`
+*   \`input\`: An object containing the text to send.
+
+\`\`\`javascript
+input: {
+  message_type: 'text',
+  text: 'Hello World'
+}
+\`\`\`
+`,
         hint: 'Use assistant.message() with sessionId, assistantId, and input object.',
         starterCode: `async function sendMessage(assistantId, sessionId, text) {
   const response = await assistant.message({
@@ -109,7 +144,13 @@ sendMessage('demo-assistant-id', 'demo-session-id', 'Hello Watson!').catch(conso
       {
         id: 4,
         title: 'Handle Multiple Turns',
-        description: 'Create a conversation flow with multiple message exchanges.',
+        description: `
+### 4. Stateful Conversation
+
+Because we are using the same \`sessionId\`, Watson remembers what we said previously. This allows for multi-turn conversations where the context is preserved.
+
+Try sending a sequence of messages to simulate a real chat flow.
+`,
         hint: 'Reuse the same sessionId to maintain context between messages.',
         starterCode: `async function conversation() {
   const assistantId = 'demo-assistant-id';
@@ -136,7 +177,16 @@ conversation().catch(console.error);`,
       {
         id: 5,
         title: 'Error Handling',
-        description: 'Add proper error handling for API calls.',
+        description: `
+### 5. Robustness
+
+In a production app, API calls can fail. Common errors include:
+*   **401 Unauthorized**: Wrong API Key.
+*   **404 Not Found**: Wrong Service URL or Assistant ID.
+*   **400 Bad Request**: Malformed input.
+
+Always wrap your API calls in \`try-catch\` blocks to handle these gracefully.
+`,
         hint: 'Use try-catch blocks and check for specific error codes.',
         starterCode: `async function safeConversation() {
   try {
@@ -175,7 +225,14 @@ safeConversation();`,
       {
         id: 1,
         title: 'Setup Gemini Client',
-        description: 'Import the Google Generative AI SDK and initialize the client.',
+        description: `
+### 1. Initialize Google GenAI
+
+We start by importing the SDK and setting up our client with an API key.
+
+**Model Selection:**
+For this lab, we use **Gemini 2.5 Pro** (\`gemini-2.5-pro\`), which is optimized for speed and efficiency.
+`,
         hint: 'Use GoogleGenerativeAI with your API key (available as process.env.GEMINI_API_KEY in this sandbox).',
         starterCode: `// Import Gemini SDK
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -187,18 +244,24 @@ const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
 // Get the model (gemini-2.5-flash)
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
 
-console.log('Gemini client initialized for model:', 'gemini-2.5-flash');`,
+console.log('Gemini client initialized for model:', 'gemini-2.5-pro');`,
         validation: {
           type: 'output',
-          requiredStrings: ['Gemini client initialized for model: gemini-2.5-flash']
+          requiredStrings: ['Gemini client initialized for model: gemini-2.5-pro']
         }
       },
       {
         id: 2,
         title: 'Generate Content',
-        description: 'Send a simple prompt to the model and print the response.',
+        description: `
+### 2. Basic Generation
+
+The simplest way to use LLMs is "Text-to-Text" generation. You provide a prompt, and the model generates a completion.
+
+Use the \`model.generateContent(prompt)\` method.
+`,
         hint: 'Use model.generateContent() and await the response.',
         starterCode: `async function generateText() {
   const prompt = "Explain how AI works in one sentence.";
@@ -220,7 +283,22 @@ generateText().catch(console.error);`,
       {
         id: 3,
         title: 'Start a Chat Session',
-        description: 'Initialize a chat session for multi-turn conversations.',
+        description: `
+### 3. Chat Mode
+
+Unlike simple generation, **Chat Mode** stores the conversation history for you.
+
+You can initialize a chat with predefined history (few-shot prompting) using \`startChat\`.
+
+\`\`\`javascript
+history: [
+  { role: "user", parts: "Hello, I am learning deployment."
+  },
+  { role: "model", parts: "Great to meet you. I can help with that."
+  }
+]
+\`\`\`
+`,
         hint: 'Use model.startChat() to create a chat object.',
         starterCode: `async function startChat() {
   const chat = model.startChat({
@@ -253,7 +331,13 @@ startChat().catch(console.error);`,
       {
         id: 4,
         title: 'Streaming Response',
-        description: 'Handle partial results for a better user experience.',
+        description: `
+### 4. Streaming
+
+For long responses, waiting for the full text can feel slow. **Streaming** allows you to process and display chunks of the response as they arrive.
+
+Use \`generateContentStream\` which returns an iterable stream.
+`,
         hint: 'Use generateContentStream and iterate over the stream.',
         starterCode: `async function streamContent() {
   const prompt = "Write a haiku about coding.";
@@ -278,7 +362,15 @@ streamContent().catch(console.error);`,
       {
         id: 5,
         title: 'Error Handling',
-        description: 'Safely handle potential API errors.',
+        description: `
+### 5. Safety & Errors
+
+LLM calls can be unpredictable. You should handle:
+1.  **Safety Ratings**: The model might refuse to generate content if it violates safety policies.
+2.  **API Errors**: Quotas, timeouts, or connection issues.
+
+Always inspect the \`finishReason\` or wrap code in try-catch.
+`,
         hint: 'Wrap your API calls in try-catch blocks.',
         starterCode: `async function safeGenerate() {
   try {
@@ -311,7 +403,13 @@ safeGenerate();`,
       {
         id: 1,
         title: 'Connect to Cloudant',
-        description: 'Initialize a connection to IBM Cloudant database.',
+        description: `
+### 1. Connecting to the Database
+
+IBM Cloudant is a distributed NoSQL JSON document store. We connect to it using the Cloudant SDK.
+
+**Note:** In a real application, you would never hardcode credentials. Here we are using a pre-configured demo key.
+`,
         hint: 'Use @ibm-cloud/cloudant with IAM authentication.',
         starterCode: `const { CloudantV1 } = require('@ibm-cloud/cloudant');
 const { IamAuthenticator } = require('ibm-cloud-sdk-core');
@@ -331,7 +429,13 @@ console.log('Cloudant client initialized');`,
       {
         id: 2,
         title: 'Create a Document',
-        description: 'Insert a new document into a Cloudant database.',
+        description: `
+### 2. Creating Documents (POST)
+
+In Cloudant, data is stored as JSON **Documents**.
+
+We use \`postDocument\` to insert a new record. The database will automatically assign a unique \`_id\` if you don't provide one.
+`,
         hint: 'Use client.postDocument() with database name and document object.',
         starterCode: `async function createDocument(db, doc) {
   const response = await client.postDocument({
@@ -357,7 +461,13 @@ createDocument('users', myDoc).catch(console.error);`,
       {
         id: 3,
         title: 'Read a Document',
-        description: 'Retrieve a document by its ID.',
+        description: `
+### 3. Reading Documents (GET)
+
+To retrieve a specific document, you need its \`_id\`.
+
+Use \`getDocument\`. This is the fastest way to access data in Cloudant.
+`,
         hint: 'Use client.getDocument() with database and document ID.',
         starterCode: `async function readDocument(db, docId) {
   const response = await client.getDocument({
@@ -377,7 +487,18 @@ readDocument('users', 'demo-doc-id').catch(console.error);`,
       {
         id: 4,
         title: 'Update a Document',
-        description: 'Modify an existing document (requires _rev).',
+        description: `
+### 4. Updating Documents (PUT)
+
+Updates in Cloudant use **Optimistic Locking**.
+
+To update a document, you must:
+1.  Read the current document.
+2.  Get its latest \`_rev\` (revision token).
+3.  Send the modified document **including the \`_rev\`**.
+
+If the \`_rev\` doesn't match the one on the server (meaning someone else updated it), the update will be rejected.
+`,
         hint: 'Get the document first to obtain its _rev, then update.',
         starterCode: `async function updateDocument(db, docId, updates) {
   // First, get current document
@@ -405,7 +526,13 @@ updateDocument('users', 'demo-doc-id', { age: 31 }).catch(console.error);`,
       {
         id: 5,
         title: 'Delete a Document',
-        description: 'Remove a document from the database.',
+        description: `
+### 5. Deleting Documents
+
+Deleting also requires the \`_rev\` token for safety.
+
+Use \`deleteDocument\`.
+`,
         hint: 'Use client.deleteDocument() with database, ID, and current rev.',
         starterCode: `async function deleteDocument(db, docId) {
   // Get current rev
@@ -431,7 +558,20 @@ deleteDocument('users', 'demo-doc-id').catch(console.error);`,
       {
         id: 6,
         title: 'Query with Selector',
-        description: 'Find documents using Cloudant Query (Mango syntax).',
+        description: `
+### 6. Complex Queries (Mango)
+
+Cloudant supports a powerful query language called **Mango**, similar to MongoDB selectors.
+
+You can query fields other than the ID using \`postFind\`.
+
+**Example Selector:**
+\`\`\`json
+{
+  "age": { "$gt": 25 }
+}
+\`\`\`
+`,
         hint: 'Use client.postFind() with a selector object.',
         starterCode: `async function findDocuments(db, selector) {
   const response = await client.postFind({

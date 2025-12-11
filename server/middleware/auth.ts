@@ -1,6 +1,6 @@
 import { defineEventHandler, getCookie, sendRedirect } from 'h3'
 
-const publicPaths = ['/login', '/api/auth/login', '/api/auth/callback', '/api/auth/logout']
+const publicPaths = ['/login', '/api/auth/login', '/api/auth/callback', '/api/auth/logout', '/topology']
 
 export default defineEventHandler((event) => {
   const path = event.path

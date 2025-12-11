@@ -1,12 +1,11 @@
 # Placeholder Terraform template for AI Chatbot quickstart.
 # Replace with module source registry versions per Terraform standards.
 
-terraform {
-  required_version = ">= 1.5.0"
-}
+
 
 provider "ibm" {
-  region = var.region
+  region           = var.region
+  ibmcloud_api_key = var.ibmcloud_api_key
 }
 
 module "ai_chatbot" {

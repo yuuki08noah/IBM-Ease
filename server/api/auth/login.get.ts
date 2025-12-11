@@ -21,6 +21,10 @@ export default defineEventHandler((event) => {
   // Encode provider in state so callback knows who to verify with
   const state = JSON.stringify({ p: provider, o: origin })
 
+  if (provider === 'mock') {
+    return { redirect: `${origin}/api/auth/callback?code=mock_code&state=${state}` }
+  }
+
   if (provider === 'google') {
     if (!config.googleOauth?.clientId) {
       throw createError({ statusCode: 500, statusMessage: 'Google OAuth not configured' })

@@ -1,15 +1,17 @@
 import JSZip from 'jszip'
-import { QuickstartTemplate } from './templates'
+import type { QuickstartTemplate } from './templates'
 
 export type TerraformBundleParams = {
   name: string
   region: string
   resourceGroup: string
   env: string
-  backendBucket: string
-  backendRegion: string
+  backendType: 'local' | 'remote' | 'tfc'
+  backendBucket?: string
+  backendRegion?: string
   backendEndpoint?: string
   registry?: string
+  tfcOrganization?: string
 }
 
 export type TerraformBundle = {
@@ -24,7 +26,10 @@ const requiredVersion = '>= 1.5.0'
 
 export async function buildTerraformBundle(template: QuickstartTemplate, params: TerraformBundleParams): Promise<TerraformBundle> {
   const moduleSource = deriveModuleSource(params.registry, template.moduleSource)
-  const backendBlock = `terraform {
+
+  let backendBlock = ''
+  if (params.backendType === 'remote' && params.backendBucket && params.backendRegion) {
+    backendBlock = `terraform {
   required_version = "${requiredVersion}"
   required_providers {
     ibm = {
@@ -42,6 +47,35 @@ export async function buildTerraformBundle(template: QuickstartTemplate, params:
   }
 }
 `
+  } else if (params.backendType === 'tfc' && params.tfcOrganization) {
+    backendBlock = `terraform {
+  required_version = "${requiredVersion}"
+  required_providers {
+    ibm = {
+      source  = "IBM-Cloud/ibm"
+      version = "${providerVersion}"
+    }
+  }
+  cloud {
+    organization = "${params.tfcOrganization}"
+    workspaces {
+      name = "${params.name}-${params.env}"
+    }
+  }
+}
+`
+  } else {
+    backendBlock = `terraform {
+  required_version = "${requiredVersion}"
+  required_providers {
+    ibm = {
+      source  = "IBM-Cloud/ibm"
+      version = "${providerVersion}"
+    }
+  }
+}
+`
+  }
 
   const providerBlock = `provider "ibm" {
   region = var.region

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const errorMessage = ref('')
+const isDev = process.env.NODE_ENV === 'development'
 
 const start = async (provider: string) => {
   errorMessage.value = ''
@@ -47,6 +48,10 @@ const start = async (provider: string) => {
             </button>
             <button class="secondary-btn" @click="start('google')">
               Continue with Google
+            </button>
+            <!-- Dev Login -->
+            <button v-if="isDev" class="ghost-btn" style="color: var(--cds-support-warning)" @click="start('mock')">
+              Dev Login
             </button>
             <button class="ghost-btn" @click="$router.push('/')">Back home</button>
           </div>

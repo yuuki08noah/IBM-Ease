@@ -1,21 +1,26 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-const templates = ref([] as Array<{
-  id: string
-  name: string
-  description: string
-  services: string[]
-  estCost: string
-  category: string
-}>)
+// Data fetching with SSR support
+const { data: templates } = await useFetch('/api/quickstart/templates', {
+  default: () => [] as Array<{
+    id: string
+    name: string
+    description: string
+    services: string[]
+    estCost: string
+    category: string
+  }>
+})
+
 const selected = ref('')
 const params = ref({
   name: 'ai-chatbot-demo',
   region: 'us-south',
   resourceGroup: 'default',
   env: 'dev',
-  tags: '' 
+  backendType: 'local',
+  tags: ''
 })
 const deployStatus = ref<'idle' | 'planning' | 'applying' | 'done' | 'error'>('idle')
 const deployResult = ref<{ plan?: string; logs?: string; downloadUrl?: string; error?: string; readme?: string }>({})
@@ -23,11 +28,9 @@ const errorMessage = ref('')
 
 const filteredTemplates = computed(() => templates.value)
 
-onMounted(async () => {
-  const { data } = await useFetch('/api/quickstart/templates')
-  if (data.value) {
-    templates.value = data.value
-    selected.value = data.value[0]?.id || ''
+onMounted(() => {
+  if (templates.value && templates.value.length > 0 && !selected.value) {
+     selected.value = templates.value[0].id
   }
 })
 
@@ -159,6 +162,22 @@ const handleAIUpdate = (data: any) => {
                 <option value="test">Test</option>
                 <option value="prod">Production</option>
               </select>
+             </div>
+
+             <!-- Backend Selection -->
+             <div class="form-group">
+                 <label class="label">State Backend</label>
+                 <div class="radio-group">
+                     <label class="radio-label" :class="{ selected: params.backendType === 'local' }">
+                         <input type="radio" value="local" v-model="params.backendType">
+                         <span>Local</span>
+                     </label>
+                     <label class="radio-label" :class="{ selected: params.backendType === 'remote' }">
+                         <input type="radio" value="remote" v-model="params.backendType">
+                         <span>Terraform Cloud (IBM COS)</span>
+                     </label>
+                 </div>
+                 <p class="input-hint" v-if="params.backendType === 'remote'">Requires server-side `TF_BACKEND_` configuration.</p>
              </div>
              
              <!-- Tags input populated by AI -->
@@ -350,5 +369,38 @@ const handleAIUpdate = (data: any) => {
 
 .download-link:hover {
   background: #198038; /* Green 70 */
+}
+
+/* Radio Group */
+.radio-group {
+    display: flex;
+    gap: 12px;
+}
+
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #262626;
+    border: 1px solid #393939;
+    cursor: pointer;
+    font-size: 14px;
+    color: #c6c6c6;
+    transition: all 0.2s;
+}
+
+.radio-label:hover {
+    background: #353535;
+}
+
+.radio-label.selected {
+    border-color: #0f62fe;
+    background: #353535;
+    color: #ffffff;
+}
+
+.radio-label input {
+    margin: 0;
 }
 </style>

@@ -1,5 +1,6 @@
 import { defineEventHandler, readBody } from 'h3'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { safeSendMessage } from '~/server/utils/gemini'
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event)
@@ -10,7 +11,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' })
 
     const systemPrompt = `You are an IBM Cloud Solutions Architect. The user wants to design a cloud topology.
     Your goal is to generate a diagram layout using standard IBM Cloud and Kubernetes resources.
@@ -62,7 +63,7 @@ export default defineEventHandler(async (event) => {
       "structuredData": {
           "nodes": [
               { "id": "node-1", "type": "openshift", "name": "Cluster-1", "x": 100, "y": 100, "isGroup": true, "width": 600, "height": 400 },
-              { "id": "node-2", "type": "k8s-pod", "name": "App-Pod", "x": 150, "y": 150 }
+              { "id": "node-2", "type": "k8s-pod", "name": "App-Pod", "x": 150, "y": 150, "parentId": "node-1" }
           ],
           "connections": [
               { "from": "node-1", "to": "node-2" }
@@ -71,7 +72,9 @@ export default defineEventHandler(async (event) => {
     }
   
     Guidelines:
-    1. **CONTAINMENT & SIZE**:
+    1. **CONTAINMENT & HIERARCHY**: 
+       - **Explicit Parent**: When a node (e.g. Pod) is inside a Cluster, set "parentId": "cluster-node-id".
+       - This is CRITICAL for the layout engine to keep them together.
        - **Clusters**: Make them LARGE. Minimum width: 800, Minimum height: 600.
        - **VPCs**: Make them HUGE. Minimum width: 1000, Minimum height: 800.
        - **Padding**: Leave at least 50px padding around items inside a group. Do NOT place items on the very edge.
@@ -100,7 +103,7 @@ export default defineEventHandler(async (event) => {
             ]
         })
 
-        const result = await chatSession.sendMessage(body.message + " (Remember: Return JSON)")
+        const result = await safeSendMessage(chatSession, body.message + " (Remember: Return JSON)")
         const response = await result.response
         let text = response.text()
 

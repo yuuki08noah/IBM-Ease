@@ -1,5 +1,6 @@
 import { defineEventHandler, readBody } from 'h3'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { safeSendMessage } from '~/server/utils/gemini'
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event)
@@ -10,7 +11,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' })
 
     const systemPrompt = `You are an IBM Cloud Solutions Architect. The user wants to build a cloud application. 
   Your goal is to configure the "Quick Start" form for them.
@@ -53,7 +54,7 @@ export default defineEventHandler(async (event) => {
         })
 
         // Append a reminder to force JSON
-        const result = await chatSession.sendMessage(body.message + " (Remember: Return JSON with structuredData)")
+        const result = await safeSendMessage(chatSession, body.message + " (Remember: Return JSON with structuredData)")
         const response = await result.response
         let text = response.text()
 

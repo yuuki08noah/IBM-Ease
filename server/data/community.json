@@ -51,6 +51,14 @@
       "reputation": 0,
       "badges": [],
       "certified": false
+    },
+    {
+      "id": "113901249698743344608",
+      "name": "Sejun Noah Bang",
+      "role": "user",
+      "reputation": 5,
+      "badges": [],
+      "certified": false
     }
   ],
   "posts": [
@@ -79,7 +87,7 @@
         "database",
         "performance"
       ],
-      "votes": 8,
+      "votes": 9,
       "views": 189,
       "solved": false,
       "createdAt": "2023-11-20T14:30:00Z"
@@ -128,6 +136,16 @@
       "accepted": false,
       "ibmVerified": false,
       "createdAt": "2025-12-06T16:30:41.272Z"
+    },
+    {
+      "postId": "q1765038529493",
+      "body": "HI",
+      "authorId": "113901249698743344608",
+      "id": "a1765410599186",
+      "votes": 0,
+      "accepted": false,
+      "ibmVerified": false,
+      "createdAt": "2025-12-10T23:49:59.186Z"
     }
   ]
 }

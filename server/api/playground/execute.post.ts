@@ -14,6 +14,7 @@ interface ExecuteRequest {
   language: 'javascript' | 'python'
   labId?: string
   stepId?: number
+  env?: Record<string, string>
 }
 
 export default defineEventHandler(async (event) => {
@@ -48,7 +49,8 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Unsupported language' })
     }
 
-    const result = await executeInSandbox(command, args, sandboxDir)
+    const result = await executeInSandbox(command, args, sandboxDir, body.env || {})
+
 
     await cleanup(sandboxDir)
 
@@ -72,7 +74,8 @@ export default defineEventHandler(async (event) => {
 async function executeInSandbox(
   command: string,
   args: string[],
-  cwd: string
+  cwd: string,
+  env: Record<string, string> = {}
 ): Promise<{ success: boolean; output: string; error?: string; executionTime: number }> {
   const startTime = Date.now()
 
@@ -94,7 +97,8 @@ async function executeInSandbox(
         WATSON_API_URL: process.env.WATSON_API_URL,
         CLOUDANT_URL: process.env.CLOUDANT_URL,
         CLOUDANT_API_KEY: process.env.CLOUDANT_API_KEY,
-        IAM_API_KEY: process.env.IAM_API_KEY
+        IAM_API_KEY: process.env.IAM_API_KEY,
+        ...env
       },
       timeout: TIMEOUT_MS
     })

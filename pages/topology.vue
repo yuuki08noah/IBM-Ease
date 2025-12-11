@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import JSZip from 'jszip'
+import { serviceCategories } from '~/utils/service-catalog'
 
 interface Node {
   id: string
@@ -10,6 +12,8 @@ interface Node {
   width?: number
   height?: number
   isGroup?: boolean
+  parentId?: string
+  config?: Record<string, string>
 }
 
 interface Connection {
@@ -22,6 +26,8 @@ const connections = ref<Connection[]>([])
 const selectedNodeId = ref<string | null>(null)
 const terraformCode = ref('')
 const showTerraform = ref(false)
+const useTFC = ref(true)
+const ibmApiKey = ref('')
 
 // Canvas Transform State
 const transform = ref({ x: 0, y: 0, scale: 1 })
@@ -40,66 +46,22 @@ const mousePos = ref({ x: 0, y: 0 }) // For drawing the temp line (in canvas spa
 
 const canvasRef = ref<HTMLElement | null>(null)
 
-const serviceCategories = [
-  {
-    name: 'Infrastructure',
-    services: [
-      { type: 'vpc', name: 'VPC', icon: '☁️', color: 'var(--ibm-blue-60)' },
-      { type: 'subnet', name: 'Subnet', icon: '🕸️', color: 'var(--ibm-blue-50)' },
-      { type: 'gateway', name: 'Public Gateway', icon: '🚪', color: 'var(--ibm-blue-50)' },
-      { type: 'vpn', name: 'VPN Gateway', icon: '🔒', color: 'var(--ibm-blue-50)' },
-      { type: 'classic-vsi', name: 'Classic VSI', icon: '🖥️', color: 'var(--ibm-gray-60)' },
-      { type: 'barewriter', name: 'Bare Metal', icon: '🏗️', color: 'var(--ibm-gray-70)' },
-    ]
-  },
-  {
-    name: 'Container Platform',
-    services: [
-      { type: 'kubernetes', name: 'Kubernetes Cluster', icon: '☸️', color: 'var(--ibm-blue-60)' },
-      { type: 'openshift', name: 'OpenShift', icon: '⭕', color: 'var(--ibm-red-60)' },
-      { type: 'registry', name: 'Container Registry', icon: '🚢', color: 'var(--ibm-blue-40)' },
-      { type: 'code-engine', name: 'Code Engine', icon: '🚀', color: 'var(--ibm-blue-50)' },
-    ]
-  },
-  {
-    name: 'Kubernetes Internals',
-    services: [
-      { type: 'k8s-pod', name: 'Pod', icon: '📦', color: 'var(--ibm-magenta-50)' },
-      { type: 'k8s-deployment', name: 'Deployment', icon: '🔄', color: 'var(--ibm-magenta-60)' },
-      { type: 'k8s-service', name: 'Service', icon: '🔌', color: 'var(--ibm-magenta-40)' },
-      { type: 'k8s-ingress', name: 'Ingress', icon: '🚪', color: 'var(--ibm-magenta-50)' },
-      { type: 'k8s-configmap', name: 'ConfigMap', icon: '📝', color: 'var(--ibm-teal-50)' },
-      { type: 'k8s-secret', name: 'Secret', icon: '🔐', color: 'var(--ibm-teal-60)' },
-      { type: 'k8s-pvc', name: 'PVC', icon: '💾', color: 'var(--ibm-cyan-50)' },
-       { type: 'k8s-cronjob', name: 'CronJob', icon: '⏱️', color: 'var(--ibm-purple-50)' },
-    ]
-  },
-  {
-    name: 'Data & AI',
-    services: [
-      { type: 'cloudant', name: 'Cloudant DB', icon: '📄', color: 'var(--ibm-green-60)' },
-      { type: 'postgresql', name: 'PostgreSQL', icon: '🐘', color: 'var(--ibm-green-50)' },
-      { type: 'mongodb', name: 'MongoDB', icon: '🍃', color: 'var(--ibm-green-50)' },
-      { type: 'cos', name: 'Object Storage', icon: '📦', color: 'var(--ibm-blue-50)' },
-      { type: 'eventstreams', name: 'Event Streams', icon: '📨', color: 'var(--ibm-purple-50)' },
-      { type: 'watson', name: 'Watson Assistant', icon: '🤖', color: 'var(--ibm-purple-60)' },
-      { type: 'watsonx', name: 'watsonx.ai', icon: '🧠', color: 'var(--ibm-purple-70)' },
-    ]
-  },
-  {
-    name: 'Security & Ops',
-    services: [
-      { type: 'key-protect', name: 'Key Protect', icon: '🔑', color: 'var(--ibm-gray-60)' },
-      { type: 'secrets-manager', name: 'Secrets Manager', icon: '🤐', color: 'var(--ibm-gray-60)' },
-      { type: 'observability', name: 'Observability', icon: '🔭', color: 'var(--ibm-cyan-60)' },
-      { type: 'activity-tracker', name: 'Activity Tracker', icon: '📊', color: 'var(--ibm-cyan-50)' },
-    ]
-  }
-]
+const searchQuery = ref('')
+// serviceCategories imported from utils/service-catalog.ts
 
 // Flattened list for easy lookup
 const serviceTypes = computed(() => {
   return serviceCategories.flatMap(c => c.services)
+})
+
+const filteredCategories = computed(() => {
+    if (!searchQuery.value) return serviceCategories
+    const lower = searchQuery.value.toLowerCase()
+    
+    return serviceCategories.map(cat => ({
+        ...cat,
+        services: cat.services.filter(s => s.name.toLowerCase().includes(lower) || s.type.toLowerCase().includes(lower))
+    })).filter(cat => cat.services.length > 0)
 })
 
 // --- Helpers ---
@@ -262,8 +224,13 @@ const onCanvasMouseMove = (event: MouseEvent) => {
       const node = nodes.value.find(n => n.id === draggedNodeId.value)
       if (node) {
         const mouseInCanvas = toCanvasCoords(event.clientX, event.clientY)
-        node.x = mouseInCanvas.x - dragOffset.value.x
-        node.y = mouseInCanvas.y - dragOffset.value.y
+        let rawX = mouseInCanvas.x - dragOffset.value.x
+        let rawY = mouseInCanvas.y - dragOffset.value.y
+        
+        // SNAP TO GRID (20px)
+        const gridSize = 20
+        node.x = Math.round(rawX / gridSize) * gridSize
+        node.y = Math.round(rawY / gridSize) * gridSize
       }
     }
     
@@ -307,7 +274,18 @@ onUnmounted(() => {
 
 const generateTerraform = () => {
   let code = '# IBM Cloud Topology - Generated by IBM Ease\n\n'
-  code += 'terraform {\n  required_providers {\n    ibm = {\n      source = "IBM-Cloud/ibm"\n      version = "~> 1.59.0"\n    }\n  }\n}\n\n'
+  code += 'terraform {\n  required_providers {\n    ibm = {\n      source = "IBM-Cloud/ibm"\n      version = "~> 1.59.0"\n    }\n  }\n'
+  
+  if (useTFC.value) {
+    code += `  cloud {
+    organization = "ibm-ease"
+    workspaces {
+      name = "topology-${Date.now()}"
+    }
+  }\n`
+  }
+  
+  code += '}\n\n'
   code += 'variable "region" { default = "us-south" }\n'
   code += 'variable "resource_group_id" {}\n\n'
   code += 'provider "ibm" {\n  region = var.region\n}\n\n'
@@ -318,6 +296,23 @@ const generateTerraform = () => {
       code += `resource "ibm_${node.type}" "${safeName}_${node.id.split('-')[1]}" {\n`
       code += `  name              = "${node.name}"\n`
       code += `  resource_group_id = var.resource_group_id\n`
+      
+      // Custom Properties
+      if (node.config) {
+          Object.entries(node.config).forEach(([key, value]) => {
+              // Try to parse basic types (bool, number, list) or keep as string
+              if (value === 'true' || value === 'false') {
+                  code += `  ${key} = ${value}\n`
+              } else if (!isNaN(Number(value)) && value.trim() !== '') {
+                  code += `  ${key} = ${value}\n`
+              } else if (value.startsWith('[') && value.endsWith(']')) {
+                   code += `  ${key} = ${value}\n`
+              } else {
+                  code += `  ${key} = "${value}"\n`
+              }
+          })
+      }
+      
       code += `  # Position: x=${Math.round(node.x)}, y=${Math.round(node.y)}\n`
       
       // Look for dependencies
@@ -336,6 +331,68 @@ const generateTerraform = () => {
 
   terraformCode.value = code
   showTerraform.value = true
+}
+
+const downloadTerraform = async () => {
+    const zip = new JSZip()
+    
+    // 1. main.tf
+    zip.file("main.tf", terraformCode.value)
+    
+    // 2. variables.tf (Basic)
+    const variablesTf = `variable "ibmcloud_api_key" {
+  description = "Enter your IBM Cloud API Key here"
+  sensitive   = true
+}`
+    zip.file("variables.tf", variablesTf)
+    
+    // 3. terraform.tfvars (if key provided)
+    if (ibmApiKey.value) {
+        zip.file("terraform.tfvars", `ibmcloud_api_key = "${ibmApiKey.value}"`)
+    }
+    
+    // 4. README.md
+    const readme = `# IBM Ease Topology
+
+This Terraform configuration was generated by IBM Ease.
+
+## Prerequisites
+
+- [Terraform CLI](https://developer.hashicorp.com/terraform/downloads)
+- [IBM Cloud Account](https://cloud.ibm.com)
+
+## Quick Start
+
+1.  **Initialize Terraform**:
+    \`\`\`bash
+    terraform init
+    \`\`\`
+
+2.  **Plan Deployment**:
+    \`\`\`bash
+    terraform plan
+    \`\`\`
+    *(If you didn't provide an API Key, you will be prompted for \`ibmcloud_api_key\`)*
+
+3.  **Apply**:
+    \`\`\`bash
+    terraform apply
+    \`\`\`
+
+## Files
+
+- \`main.tf\`: The main configuration file containing your resources.
+- \`variables.tf\`: Variable definitions.
+- \`terraform.tfvars\`: Contains your API Key (if provided). **DO NOT COMMIT THIS FILE TO GIT.**
+`
+    zip.file("README.md", readme)
+    
+    // Generate and Download
+    const content = await zip.generateAsync({ type: "blob" })
+    const link = document.createElement("a")
+    link.href = URL.createObjectURL(content)
+    link.download = "ibm-ease-topology.zip"
+    link.click()
 }
 
 // Helper to get center of a node for lines
@@ -371,6 +428,93 @@ const getTempConnectionPath = (fromId: string, mouse: {x: number, y: number}) =>
     return `M ${start.x} ${start.y} L ${midX} ${start.y} L ${midX} ${mouse.y} L ${mouse.x} ${mouse.y}`
 }
 
+const updateGroupDimensions = () => {
+    // 1. Identify groups
+    const groups = nodes.value.filter(n => n.isGroup)
+    
+    groups.forEach(group => {
+        // 2. Find children
+        const children = nodes.value.filter(n => n.parentId === group.id)
+        if (children.length === 0) return
+
+        // 3. Calculate bounding box
+        let minX = Infinity, minY = Infinity
+        let maxX = -Infinity, maxY = -Infinity
+
+        children.forEach(child => {
+            const w = child.width || 200
+            const h = child.height || 64
+            minX = Math.min(minX, child.x)
+            minY = Math.min(minY, child.y)
+            maxX = Math.max(maxX, child.x + w)
+            maxY = Math.max(maxY, child.y + h)
+        })
+
+        // 4. Update group (with padding)
+        const padding = 60
+        group.x = minX - padding
+        group.y = minY - padding - 40 // Extra top padding for header
+        group.width = (maxX - minX) + (padding * 2)
+        group.height = (maxY - minY) + (padding * 2) + 40
+    })
+}
+
+const copyToClipboard = (text: string) => {
+    if (navigator && navigator.clipboard) {
+        navigator.clipboard.writeText(text)
+    }
+}
+
+const autoLayout = () => {
+    // A simple tier-based layout algorithm
+    const startX = 100
+    const startY = 100
+    const levelHeight = 200
+    const nodeSpacing = 240 // Width + gap
+    
+    // 1. Separate Groups (Parents) and Orphans
+    const groups = nodes.value.filter(n => n.isGroup)
+    const orphans = nodes.value.filter(n => !n.isGroup && !n.parentId)
+    
+    let currentY = startY
+
+    // 2. Layout Groups first
+    groups.forEach((group, gIdx) => {
+        group.x = startX
+        group.y = currentY
+        
+        // Layout children inside group
+        const children = nodes.value.filter(n => n.parentId === group.id)
+        if (children.length > 0) {
+            // arrange children in a row inside the group
+            let childX = group.x + 40
+            let childY = group.y + 60 // Header space
+            
+            children.forEach(child => {
+                 child.x = childX
+                 child.y = childY
+                 childX += nodeSpacing
+            })
+        }
+        
+        // Resize group to fit
+        updateGroupDimensions() // This will recalculate based on child positions
+        
+        // Move Y down for next group
+        currentY += group.height! + 80
+    })
+
+    // 3. Layout Orphans below
+    if (orphans.length > 0) {
+        let orphanX = startX
+        orphans.forEach(node => {
+            node.x = orphanX
+            node.y = currentY
+            orphanX += nodeSpacing
+        })
+    }
+}
+
 const handleTopologyUpdate = (data: any) => {
     if (data.nodes && Array.isArray(data.nodes)) {
         nodes.value = data.nodes
@@ -378,7 +522,20 @@ const handleTopologyUpdate = (data: any) => {
     if (data.connections && Array.isArray(data.connections)) {
         connections.value = data.connections
     }
+    
+    // Run Deterministic Layout
+    setTimeout(() => {
+        autoLayout()
+        updateGroupDimensions() // double check
+    }, 100)
 }
+
+// Update dragging logic to also move children? 
+// For now, simpler: user drags group -> children stay put (might be weird).
+// Better: When dragging group, drag children too.
+// Or simple auto-resize is enough for "Presentation" mode after AI generation. 
+// Let's stick to updateGroupDimensions only on AI load for now to fix the "clumsy" initial state.
+
 // --- Icons ---
 const ChevronDown = '▼'
 const ChevronRight = '▶'
@@ -393,6 +550,36 @@ const toggleCategory = (categoryName: string) => {
         collapsedCategories.value.add(categoryName)
     }
 }
+
+// --- Node Properties ---
+const selectedNode = computed(() => {
+    return nodes.value.find(n => n.id === selectedNodeId.value)
+})
+
+const addProperty = () => {
+    if (!selectedNode.value) return
+    if (!selectedNode.value.config) {
+        selectedNode.value.config = {}
+    }
+    // Find unique key
+    let key = 'new_property'
+    let counter = 1
+    while (key in selectedNode.value.config) {
+        key = `new_property_${counter}`
+        counter++
+    }
+    selectedNode.value.config[key] = ''
+}
+
+const removeProperty = (key: string) => {
+    if (!selectedNode.value || !selectedNode.value.config) return
+    delete selectedNode.value.config[key]
+}
+
+// Force update for deep reactivity if needed, though Vue 3 Proxy usually handles object add/delete if property exists. 
+// However, adding a new property to an object that didn't have it might require careful handling if not initialised. 
+// We ensure config is initialised in addProperty.
+
 </script>
 
 <template>
@@ -412,8 +599,13 @@ const toggleCategory = (categoryName: string) => {
       <!-- Tool Palette -->
       <section class="card tool-palette">
         <h3 class="card-title">Services</h3>
+          <!-- Search UI -->
+          <div class="palette-search">
+              <input v-model="searchQuery" placeholder="Search services..." class="palette-search-input" />
+          </div>
+
           <div class="services-list">
-            <div v-for="category in serviceCategories" :key="category.name" class="service-category">
+            <div v-for="category in filteredCategories" :key="category.name" class="service-category">
                 <button class="category-header-btn" @click="toggleCategory(category.name)">
                     <span class="category-icon">
                         {{ collapsedCategories.has(category.name) ? ChevronRight : ChevronDown }}
@@ -467,8 +659,8 @@ const toggleCategory = (categoryName: string) => {
                        v-for="(conn, idx) in connections"
                        :key="idx"
                        :d="getConnectionPath(conn.from, conn.to)"
-                       stroke="#6f6f6f"
-                       stroke-width="2"
+                       stroke="#0f62fe" 
+                       stroke-width="3"
                        fill="none"
                        marker-end="url(#arrowhead)"
                      />
@@ -494,31 +686,51 @@ const toggleCategory = (categoryName: string) => {
                     top: node.y + 'px',
                     width: (node.width || 200) + 'px',
                     height: node.height ? node.height + 'px' : 'auto',
-                    borderColor: selectedNodeId === node.id ? '#4589ff' : (node.isGroup ? '#e0e0e0' : '#393939'),
-                    zIndex: node.isGroup ? 0 : 1,
-                    backgroundColor: node.isGroup ? 'rgba(240, 240, 240, 0.4)' : 'var(--cds-layer)',
-                    borderStyle: node.isGroup ? 'dashed' : 'solid',
-                    borderWidth: node.isGroup ? '2px' : '1px'
+                    zIndex: node.isGroup ? 0 : 2,
+                    
+                    // Base Styling
+                    // Base Styling
+                    borderRadius: node.isGroup ? '4px' : '8px',
+                    backgroundColor: node.isGroup 
+                        ? 'rgba(244, 244, 244, 0.05)' // Subtle light bg
+                        : 'var(--cds-layer)',
+                    backdropFilter: node.isGroup ? 'none' : 'none',
+                    border: node.isGroup 
+                        ? '2px dashed #8d8d8d' 
+                        : (selectedNodeId === node.id ? '2px solid #0f62fe' : '1px solid #e0e0e0'),
+                    boxShadow: node.isGroup 
+                        ? 'none' 
+                        : '0 2px 6px rgba(0,0,0,0.1)'
                   }"
                   @mousedown.stop="startDrag($event, node)"
                   @click.stop="selectNode(node.id)"
                 >
-                  <div class="node-header" :style="{ background: node.isGroup ? 'transparent' : getNodeColor(node.type), borderBottom: node.isGroup ? 'none' : 'none' }">
-                    <span v-if="!node.isGroup">{{ serviceTypes.find(s => s.type === node.type)?.icon || '❓' }}</span>
-                    <span :style="{ fontSize: node.isGroup ? '14px' : '12px', fontWeight: '600', color: node.isGroup ? '#525252' : '#fff' }">
+<!-- ... existing node content ... -->
+                  <div class="node-header" 
+                       :style="{ 
+                           background: node.isGroup ? '#393939' : getNodeColor(node.type), 
+                           borderBottom: node.isGroup ? 'none' : 'none',
+                           padding: node.isGroup ? '8px 12px' : '8px 12px',
+                           borderRadius: node.isGroup ? '2px 2px 0 0' : '8px 8px 0 0'
+                       }"
+                  >
+                    <span v-if="!node.isGroup" style="margin-right: 8px;">{{ serviceTypes.find(s => s.type === node.type)?.icon || '❓' }}</span>
+                    <span :style="{ 
+                        fontSize: node.isGroup ? '12px' : '13px', 
+                        fontWeight: '600', 
+                        color: node.isGroup ? '#f4f4f4' : '#fff',
+                        letterSpacing: node.isGroup ? '0.5px' : '0'
+                    }">
                          {{ node.isGroup ? node.name.toUpperCase() : (serviceTypes.find(s => s.type === node.type)?.name || node.type) }}
                     </span>
-                    <div class="node-actions">
-                        <!-- Connect Button -->
-                        <button class="node-action-btn" title="Connect" @mousedown.stop @click.stop="startConnection(node.id, $event)">
-                            🔗
-                        </button>
+                    <div class="node-actions" v-if="!node.isGroup">
+                        <button class="node-action-btn" title="Connect" @mousedown.stop @click.stop="startConnection(node.id, $event)">🔗</button>
                         <button class="node-close" @mousedown.stop @click.stop="removeNode(node.id)">×</button>
                     </div>
                   </div>
-                  <div class="node-body" v-if="!node.isGroup">
-                    <div class="node-name">{{ node.name }}</div>
-                    <div class="node-id">{{ node.id.split('-')[1] }}</div>
+                  <div class="node-body" v-if="!node.isGroup" style="padding: 12px;">
+                    <div class="node-name" style="font-weight: 500; font-size: 14px; margin-bottom: 4px;">{{ node.name }}</div>
+                    <div class="node-id" style="font-size: 11px; color: #8d8d8d;">{{ node.id.split('-')[1] }}</div>
                   </div>
                 </div>
             </div> <!-- End Transform Content -->
@@ -542,22 +754,102 @@ const toggleCategory = (categoryName: string) => {
           </div>
         </section>
         
-        <!-- AI Assistant -->
+        <!-- AI Assistant / Properties Panel -->
         <section class="card ai-panel">
-            <h3 class="card-title">AI Architect</h3>
-            <div class="ai-container">
-                 <AIChat mode="topology" @update="handleTopologyUpdate"></AIChat>
-            </div>
+            <template v-if="selectedNode">
+                <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Properties</span>
+                    <button class="node-close" @click="selectedNodeId = null">×</button>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    <!-- Node Name -->
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <label style="font-size: 11px; color: #8d8d8d; text-transform: uppercase; font-weight: 600;">Name</label>
+                        <input v-model="selectedNode.name" class="palette-search-input" />
+                    </div>
+                    
+                     <!-- Configuration -->
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                             <label style="font-size: 11px; color: #8d8d8d; text-transform: uppercase; font-weight: 600;">Configuration</label>
+                             <button class="secondary-btn small" @click="addProperty" style="padding: 2px 8px; font-size: 11px;">+ Add</button>
+                        </div>
+                        
+                        <div v-if="selectedNode.config && Object.keys(selectedNode.config).length > 0" style="display: flex; flex-direction: column; gap: 8px;">
+                            <div v-for="(value, key) in selectedNode.config" :key="key" style="display: flex; gap: 8px; align-items: center;">
+                                <input 
+                                    :value="key" 
+                                    @change="(e: any) => {
+                                        const newKey = e.target.value
+                                        if (newKey && newKey !== key) {
+                                            selectedNode!.config![newKey] = selectedNode!.config![key]
+                                            delete selectedNode!.config![key]
+                                        }
+                                    }"
+                                    placeholder="Key" 
+                                    class="palette-search-input" 
+                                    style="flex: 1; padding: 4px 8px;"
+                                />
+                                <input v-model="selectedNode.config[key]" placeholder="Value" class="palette-search-input" style="flex: 1; padding: 4px 8px;" />
+                                <button @click="removeProperty(String(key))" style="background: none; border: none; color: #8d8d8d; cursor: pointer;">×</button>
+                            </div>
+                        </div>
+                        <div v-else style="font-size: 12px; color: #525252; font-style: italic;">
+                            No custom properties.
+                        </div>
+                    </div>
+                    
+                    <div style="border-top: 1px solid #393939; padding-top: 16px; margin-top: 16px;">
+                         <button class="secondary-btn full-width" @click="removeNode(selectedNode.id)" style="color: #da1e28; border-color: #da1e28;">
+                             Delete Node
+                         </button>
+                    </div>
+                </div>
+            </template>
+            <template v-else>
+                <h3 class="card-title">AI Architect</h3>
+                <div class="ai-container">
+                     <AIChat mode="topology" @update="handleTopologyUpdate"></AIChat>
+                </div>
+            </template>
         </section>
       </div>
 
       <section v-if="showTerraform" class="card terraform-modal">
         <div class="modal-header">
           <h3 class="card-title">Generated Terraform</h3>
-          <button class="secondary-btn small" @click="showTerraform = false">Close</button>
+          <div style="display: flex; gap: 16px; align-items: center;">
+             <label style="color: #c6c6c6; font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" v-model="useTFC" @change="generateTerraform" />
+                Use Terraform Cloud (ibm-ease)
+             </label>
+             <button class="secondary-btn small" @click="showTerraform = false">Close</button>
+          </div>
         </div>
+        
+        <div style="margin-bottom: 16px; background: #262626; padding: 12px; border-radius: 4px;">
+            <label style="display: block; font-size: 12px; color: #c6c6c6; margin-bottom: 8px;">
+                Optional: Include IBM Cloud API Key for Validated Download
+            </label>
+            <input 
+                v-model="ibmApiKey" 
+                type="password" 
+                placeholder="Enter IBM Cloud API Key (starts with 3...)"
+                style="width: 100%; background: #393939; border: 1px solid #525252; color: #fff; padding: 8px; font-size: 13px; border-radius: 4px;"
+            />
+            <p style="font-size: 11px; color: #8d8d8d; margin-top: 4px;">
+                Required if you want to run `terraform plan` immediately without interactive prompts. 
+                Will be included in `terraform.tfvars`.
+            </p>
+        </div>
+
         <pre class="code-block">{{ terraformCode }}</pre>
-        <button class="primary-btn" style="margin-top: 16px;">Download .tf files</button>
+        
+        <div style="display: flex; gap: 16px; margin-top: 16px;">
+            <button class="primary-btn" @click="downloadTerraform">Download .zip Bundle</button>
+            <button class="secondary-btn" @click="copyToClipboard(terraformCode)">Copy Code</button>
+        </div>
       </section>
     </div>
   </div>
@@ -603,6 +895,25 @@ const toggleCategory = (categoryName: string) => {
   color: #f4f4f4;
   margin: 0 0 16px;
   letter-spacing: 0.16px;
+}
+
+.palette-search {
+    margin-bottom: 12px;
+}
+
+.palette-search-input {
+    width: 100%;
+    background: #393939;
+    border: 1px solid #525252;
+    color: #f4f4f4;
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 4px;
+}
+
+.palette-search-input:focus {
+    outline: 2px solid #0f62fe;
+    border-color: transparent;
 }
 
 /* Tool Palette */
@@ -712,10 +1023,13 @@ const toggleCategory = (categoryName: string) => {
 }
 
 .canvas-content {
-    width: 100%;
-    height: 100%;
-    transform-origin: 0 0;
-    pointer-events: none; /* Let clicks pass through to container or nodes */
+  transform-origin: 0 0;
+  width: 5000px;
+  height: 5000px;
+  background-image: radial-gradient(var(--cds-border-subtle) 1px, transparent 1px);
+  background-size: 20px 20px; /* Grid Size */
+  background-position: 0 0;
+  pointer-events: none; /* Let clicks pass through to container or nodes */
 }
 
 .canvas-content > * {

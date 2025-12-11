@@ -14,8 +14,10 @@
     "@carbon/styles": "^1.95.0",
     "@carbon/type": "^11.49.0",
     "@google/generative-ai": "^0.24.1",
+    "@types/marked": "^5.0.2",
     "destr": "^2.0.0",
     "jszip": "^3.10.1",
+    "marked": "^17.0.1",
     "nuxt": "^3.9.0"
   },
   "devDependencies": {

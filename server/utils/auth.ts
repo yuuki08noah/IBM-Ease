@@ -14,7 +14,8 @@ export function getUser(event: H3Event): User | null {
   if (!userCookie) return null
 
   try {
-    const user = JSON.parse(userCookie)
+    const jsonString = Buffer.from(userCookie, 'base64').toString('utf-8')
+    const user = JSON.parse(jsonString)
     return {
       id: user.id,
       name: user.name,

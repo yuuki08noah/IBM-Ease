@@ -5,7 +5,7 @@ import { validateParams } from '../../utils/validation'
 import { saveBundle } from '../../utils/bundles'
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ templateId: string; params: { name: string; region: string; resourceGroup: string; env: string } }>(event)
+  const body = await readBody<{ templateId: string; params: { name: string; region: string; resourceGroup: string; env: string; backendType?: 'local' | 'remote' | 'tfc' } }>(event)
   if (!body?.templateId) {
     throw createError({ statusCode: 400, statusMessage: 'templateId required' })
   }
@@ -20,8 +20,12 @@ export default defineEventHandler(async (event) => {
   }
 
   const config = useRuntimeConfig()
-  if (!config.terraform.backendBucket || !config.terraform.backendRegion) {
-    throw createError({ statusCode: 500, statusMessage: 'Terraform backend config missing (TF_BACKEND_BUCKET/TF_BACKEND_REGION)' })
+  const backendType = body.params.backendType || 'local'
+
+  if (backendType === 'remote') {
+    if (!config.terraform.backendBucket || !config.terraform.backendRegion) {
+      throw createError({ statusCode: 400, statusMessage: 'Remote backend selected but server is not configured with TF_BACKEND_BUCKET/REGION' })
+    }
   }
 
   const bundle = await buildTerraformBundle(template, {
@@ -29,10 +33,12 @@ export default defineEventHandler(async (event) => {
     region: body.params.region,
     resourceGroup: body.params.resourceGroup,
     env: body.params.env,
-    backendBucket: config.terraform.backendBucket as string,
-    backendRegion: config.terraform.backendRegion as string,
+    backendType,
+    backendBucket: config.terraform.backendBucket as string | undefined,
+    backendRegion: config.terraform.backendRegion as string | undefined,
     backendEndpoint: process.env.TF_BACKEND_ENDPOINT,
-    registry: config.terraform.registry as string
+    registry: config.terraform.registry as string,
+    tfcOrganization: 'ibm-ease' // Hardcoded as per user request
   })
 
   const stored = saveBundle(bundle.filename, 'application/zip', bundle.zipBuffer)

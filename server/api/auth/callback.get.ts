@@ -32,7 +32,15 @@ export default defineEventHandler(async (event) => {
   let userInfo: { id: string; email?: string; name: string; role?: string; provider?: string } | null = null
   let accessToken: string | undefined
 
-  if (provider === 'google') {
+  if (provider === 'mock') {
+    userInfo = {
+      id: 'mock-user-id',
+      email: 'mock@example.com',
+      name: 'Mock User',
+      role: 'admin', // Default to admin for easier dev
+      provider: 'mock'
+    }
+  } else if (provider === 'google') {
     const googleConfig = config.googleOauth as any
     const redirectUri = googleConfig.redirectUri || `${origin || 'http://localhost:3000'}/api/auth/callback`
 
